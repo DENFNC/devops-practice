@@ -1,0 +1,14 @@
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: k8s-app-pdb
+  namespace: k8s-app
+  labels:
+    app.kubernetes.io/name: k8s-app
+    app.kubernetes.io/part-of: k8s-app
+spec:
+  # Минимум 1 под должен быть доступен (максимальная отказоустойчивость)
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: k8s-app

@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: k8s-app
+  labels:
+    app.kubernetes.io/name: k8s-app
+    app.kubernetes.io/part-of: k8s-app
+data:
+  # Конфигурация приложения
+  PORT: "8080"
+  LOG_LEVEL: "info"
+  # Настройки для мониторинга
+  METRICS_ENABLED: "true"

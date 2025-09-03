@@ -1,0 +1,130 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: k8s-app
+  namespace: k8s-app
+  labels:
+    app.kubernetes.io/name: k8s-app
+    app.kubernetes.io/part-of: k8s-app
+    app.kubernetes.io/version: "1.0.0"
+spec:
+  # Минимальное количество реплик для экономии ресурсов
+  # HPA будет управлять масштабированием
+  replicas: 1
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      # Максимальное количество недоступных подов во время обновления
+      maxUnavailable: 1
+      # Максимальное количество дополнительных подов
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: k8s-app
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: k8s-app
+        app.kubernetes.io/part-of: k8s-app
+        app.kubernetes.io/version: "1.0.0"
+    spec:
+      # Распределение по зонам для отказоустойчивости
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app.kubernetes.io/name
+                  operator: In
+                  values:
+                  - k8s-app
+              topologyKey: topology.kubernetes.io/zone
+        # Предпочтение распределения по нодам
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 50
+            preference:
+              matchExpressions:
+              - key: topology.kubernetes.io/zone
+                operator: In
+                values:
+                - zone-a
+                - zone-b
+                - zone-c
+      # Graceful shutdown
+      terminationGracePeriodSeconds: 30
+      containers:
+      - name: k8s-app
+        image: k8s-app:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        env:
+        - name: PORT
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: PORT
+        - name: LOG_LEVEL
+          valueFrom:
+            configMapKeyRef:
+              name: app-config
+              key: LOG_LEVEL
+        # Ресурсы с учетом требований
+        resources:
+          requests:
+            # Минимальные ресурсы для экономии
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            # Лимиты на основе требований: 0.1 CPU + буфер, 128M + буфер
+            memory: "200Mi"
+            cpu: "200m"
+        # Health checks
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 15  # Даем время на инициализацию (5-10 сек + буфер)
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8080
+          initialDelaySeconds: 10  # Начинаем проверки готовности раньше
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        # Startup probe для приложений с долгой инициализацией
+        startupProbe:
+          httpGet:
+            path: /ready
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 12  # 12 * 5 = 60 секунд максимум на инициализацию
+        # Безопасность
+        securityContext:
+          allowPrivilegeEscalation: false
+          runAsNonRoot: true
+          runAsUser: 1001
+          runAsGroup: 1001
+          readOnlyRootFilesystem: true
+          capabilities:
+            drop:
+            - ALL
+      # Безопасность на уровне пода
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1001
+        runAsGroup: 1001
+        fsGroup: 1001
+        seccompProfile:
+          type: RuntimeDefault

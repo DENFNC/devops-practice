@@ -1,0 +1,45 @@
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: k8s-app-hpa
+  namespace: k8s-app
+  labels:
+    app.kubernetes.io/name: k8s-app
+    app.kubernetes.io/part-of: k8s-app
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: k8s-app
+  minReplicas: 1  # Минимум для экономии ресурсов ночью
+  maxReplicas: 4  # Максимум на основе нагрузочного теста
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70  # Масштабируем при 70% CPU
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80  # Масштабируем при 80% памяти
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300  # 5 минут стабилизации при уменьшении
+      policies:
+      - type: Percent
+        value: 50  # Уменьшаем максимум на 50% за раз
+        periodSeconds: 60
+    scaleUp:
+      stabilizationWindowSeconds: 60   # 1 минута стабилизации при увеличении
+      policies:
+      - type: Percent
+        value: 100  # Увеличиваем максимум на 100% за раз
+        periodSeconds: 60
+      - type: Pods
+        value: 2    # Или максимум на 2 пода за раз
+        periodSeconds: 60
+      selectPolicy: Max  # Выбираем более агрессивную политику

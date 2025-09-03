@@ -1,0 +1,29 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: k8s-app-ingress
+  namespace: k8s-app
+  labels:
+    app.kubernetes.io/name: k8s-app
+    app.kubernetes.io/part-of: k8s-app
+  annotations:
+    # Аннотации для nginx-ingress (если используется)
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    # Настройки для отказоустойчивости
+    nginx.ingress.kubernetes.io/upstream-hash-by: ""
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "30"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "30"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "30"
+spec:
+  rules:
+  - host: k8s-app.local
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: k8s-app-service
+            port:
+              number: 80
